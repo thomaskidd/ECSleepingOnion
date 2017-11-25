@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <time.h>
 
+#include <bluetooth/bluetooth.h>
+
 #include <ugpio/ugpio.h>
 
 // GPIO INTIALIZATION FUNCTION
@@ -38,8 +40,8 @@ int intializeGPIO(const int pin)
 		return 1;
 }
 
-int mdelay = 500; 				// set frequency of main loop in milliseconds
-const int udelay = mdelay*1000; // convert to microseconds
+// int mdelay = 500; 				// set frequency of main loop in milliseconds
+const int udelay = 500*1000; // convert to microseconds
 
 int main(int argc, char **argv, char **envp)
 {
@@ -91,7 +93,7 @@ int main(int argc, char **argv, char **envp)
 
 	// initialize first pin
 	gpio1 = atoi(argv[1]);
-	gpioUsed1 = intializeGPIO(gpio1, 0);
+	gpioUsed1 = intializeGPIO(gpio1);
 	if(!gpioUsed1)
 	{
 		fprintf(pLogFile, "@ %s   FATAL: Pin %d failed to initialize, ending program.\r\n", asctime(contents), gpio1);
@@ -100,7 +102,7 @@ int main(int argc, char **argv, char **envp)
 
 	// initialize second pin
 	gpio2 = atoi(argv[2]);
-	gpioUsed2 = intializeGPIO(gpio2, 0);
+	gpioUsed2 = intializeGPIO(gpio2);
 	if(!gpioUsed2)
 	{
 		fprintf(pLogFile, "@ %s   FATAL: Pin %d failed to initialize\r\n", asctime(contents), gpio2);
@@ -151,7 +153,7 @@ int main(int argc, char **argv, char **envp)
 		}
 
 		// currentTime++;
-		usleep(delay);
+		usleep(udelay);
 	}
 
 	////////////////////
