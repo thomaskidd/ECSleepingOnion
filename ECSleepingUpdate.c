@@ -15,6 +15,9 @@
 
 // GPIO INTIALIZATION FUNCTION
 
+const struct tm maxTime = {0, 0, 0, 1, 0, 200, 0, 0, 0};
+const struct tm minTime = {0, 0, 0, 1, 0, 2, 0, 0, 0};
+
 int intializeGPIO(const int pin)
 {
 
@@ -222,6 +225,10 @@ int main(int argc, char **argv, char **envp)
 	int timeBytes = 0;
 	char buf[8];
     char dest[18] = "1234"; // address of the app for Omega to connect to 
+	
+	struct tm nextAlarm = maxTime;  // alarm set for 100 years in the future (alarm will not go off)
+	struct tm lastAlarm = minTime;  // previous alarm went off a long time ago (no need to check if sleeping yet)
+	int alarmGoing = 0;				
 	
 	//////////////////////////////////////////////////
 	//SCAN
