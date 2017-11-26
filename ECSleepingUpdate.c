@@ -13,11 +13,11 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
-// GPIO INTIALIZATION FUNCTION
 
 const struct tm maxTime = {0, 0, 0, 1, 0, 200, 0, 0, 0};
 const struct tm minTime = {0, 0, 0, 1, 0, 2, 0, 0, 0};
 
+// GPIO INTIALIZATION FUNCTION
 int intializeGPIO(const int pin)
 {
 
@@ -344,6 +344,7 @@ int main(int argc, char **argv, char **envp)
 			if(timeBytes > 0)
 			{
 				nextAlarm = stringToTime(buf);
+				printf("Alarm set to %s", asctime(&nextAlarm));
 			}
 			
 			// check connection
