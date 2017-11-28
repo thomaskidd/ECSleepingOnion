@@ -266,59 +266,63 @@ int main(int argc, char **argv, char **envp)
 	// BLUETOOTH SCANNING
 	//////////////////////////////////////////////////
 	
+	int bluetooth = 1;
 	//get socket for scanning for bluetooth devices
     dev_id = hci_get_route(NULL);
     sock = hci_open_dev( dev_id );
-    if (dev_id < 0 || sock < 0) {
-        perror("opening socket");
-        exit(1);
+    if(dev_id < 0 || sock < 0) {
+        perror("Failed to open socket");
+        fprintf(pLogFile, "%s\n", "@ %s   WARNING: Bluetooth socket failed to open, continueing without bluetooth.\r\n", asctime(contents));
+        bluetooth = 0;		//if bluetooth fails to open, don't try to use bluetooth
     }
 
-    //scan for 1.28 * len seconds
-    len  = 8;
-    max_rsp = 255; //find max of 255 bluetooth devices
-    flags = IREQ_CACHE_FLUSH;
-    info = (inquiry_info*)malloc(max_rsp * sizeof(inquiry_info));
+    if(bluetooth) 
+    {
+	    //scan for 1.28 * len seconds
+	    len  = 8;
+	    max_rsp = 255; //find max of 255 bluetooth devices
+	    flags = IREQ_CACHE_FLUSH;
+	    info = (inquiry_info*)malloc(max_rsp * sizeof(inquiry_info));
 
-    num_rsp = hci_inquiry(dev_id, len, max_rsp, NULL, &info, flags);
-    if( num_rsp < 0 ) perror("hci_inquiry");
+	    num_rsp = hci_inquiry(dev_id, len, max_rsp, NULL, &info, flags);
+	    if( num_rsp < 0 ) perror("hci_inquiry");
 
-    //testing
-    printf("num_rsp: ");
-    printf("%d\n",num_rsp);
+	    //testing
+	    printf("num_rsp: ");
+	    printf("%d\n",num_rsp);
 
-    for (i = 0; i < num_rsp; i++) {
-        ba2str(&(info+i)->bdaddr, address);
-        memset(name, 0, sizeof(name));
+	    for (i = 0; i < num_rsp; i++) {
+	        ba2str(&(info+i)->bdaddr, address);
+	        memset(name, 0, sizeof(name));
 
-        if (hci_read_remote_name(sock, &(info+i)->bdaddr, sizeof(name), name, 0) < 0) {
-            strcpy(name, "[unknown]");
+	        if (hci_read_remote_name(sock, &(info+i)->bdaddr, sizeof(name), name, 0) < 0) {
+	            strcpy(name, "[unknown]");
+		}
+
+		//check if this is the desired device to connect to
+		int test = strcmp(name, "ECSleeping");
+		printf("test: %d", test);
+	        if (test > -3 && test < 3) {
+		    printf("Confirmed.\n");
+		    ba2str(&(info+i)->bdaddr, dest);
+		}
+
+	        printf("%s  [%s]\n", address, name);
+	    }
+
+	    free( info );
+	    close( sock );
+
+
+	    //connect to selected device
+	    if (strcmp(dest,"1234") == 0) {
+		printf("Copying error\n");
+		return 0;
+	    }
+		
+		// allocate a socket
+	    s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
 	}
-
-	//check if this is the desired device to connect to
-	int test = strcmp(name, "ECSleeping");
-	printf("test: %d", test);
-        if (test > -3 && test < 3) {
-	    printf("Confirmed.\n");
-	    ba2str(&(info+i)->bdaddr, dest);
-	}
-
-        printf("%s  [%s]\n", address, name);
-    }
-
-    free( info );
-    close( sock );
-
-
-    //connect to selected device
-    if (strcmp(dest,"1234") == 0) {
-	printf("Copying error\n");
-	return 0;
-    }
-	
-	// allocate a socket
-    s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-	
 
 
 
@@ -338,7 +342,7 @@ int main(int argc, char **argv, char **envp)
 		clockTime = clock();				// get current clock cycle
 
 		// SAVING THE FILES EVERY HOUR
-		if((double)(clockTime - lastSave)/CLOCKS_PER_SECOND)
+		if((double)(clockTime - lastSave)/CLOCKS_PER_SEC)
 		{
 			fprint(pLogFile, "@ %s   INFO: Saving files...\r\n", asctime(contents));
 
@@ -369,7 +373,7 @@ int main(int argc, char **argv, char **envp)
 
 
 		// PIN CHECKING AND DATA WRITING
-		pinDiffTime = (double)(clockTime - lastPinCheck)/CLOCKS_PER_SECOND; // get difference in time
+		pinDiffTime = (double)(clockTime - lastPinCheck)/CLOCKS_PER_SEC; // get difference in time
 
 		if(pinDiffTime < 0)
 		{
@@ -378,7 +382,7 @@ int main(int argc, char **argv, char **envp)
 			lastPinCheck = clock();
 
 		}
-		else if( pinDiffTime >= pinCheckTime)
+		else if( pinDiffTime >= pinCheckTime && bluetooth)
 		{
 			// get value from pressure sensor; a value of one is inBed
 			gpioValue1 = gpio_get_value(gpio1);
@@ -409,7 +413,7 @@ int main(int argc, char **argv, char **envp)
 
 
 		// BLUETOOTH CONNECTING AND COMMUNICATION
-		connectionDiffTime = (double)(clockTime - lastConnectionCheck)/CLOCKS_PER_SECOND; // get difference in time
+		connectionDiffTime = (double)(clockTime - lastConnectionCheck)/CLOCKS_PER_SEC; // get difference in time
 
 		if(connectionDiffTime < 0)
 		{
@@ -541,8 +545,11 @@ int main(int argc, char **argv, char **envp)
 		}
 	}
 	
-	//close BT socket
-	close(s);
+	if(bluetooth)
+	{
+		//close BT socket
+		close(s);
+	}
 	
 	// close the files
 	fclose(pLogFile);
