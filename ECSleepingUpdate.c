@@ -14,10 +14,13 @@
 #include <bluetooth/hci_lib.h>
 
 
+
+
+// GPIO INTIALIZATION FUNCTION
+
 const struct tm maxTime = {0, 0, 0, 1, 0, 200, 0, 0, 0};
 const struct tm minTime = {0, 0, 0, 1, 0, 2, 0, 0, 0};
 
-// GPIO INTIALIZATION FUNCTION
 int intializeGPIO(const int pin)
 {
 
@@ -47,6 +50,9 @@ int intializeGPIO(const int pin)
 		return 1;
 }
 
+
+
+
 int myAtoi(char a)
 {
 	switch(a)
@@ -75,6 +81,9 @@ int myAtoi(char a)
 			return -1;
 	}
 }
+
+
+
 
 struct tm stringToTime(char* string)
 {
@@ -137,8 +146,7 @@ struct tm stringToTime(char* string)
 	return nextTime;
 }
 
-int mdelay = 500; 				// set frequency of main loop in milliseconds
-const int udelay = 500*1000; // convert to microseconds
+
 
 
 int main(int argc, char **argv, char **envp)
@@ -165,21 +173,40 @@ int main(int argc, char **argv, char **envp)
 	}
 
 	if(argc < 3)
-		{
-			printf("Usage: ./ECSleeping <gpio1> <gpio2>\n");
-			printf("gpio1 reads sensor, gpio2 ends program\n");
-			exit(-1);
-		}
+	{
+		printf("Usage: ./ECSleeping <gpio1> <gpio2>\n");
+		printf("gpio1 reads sensor, gpio2 ends program\n");
+		exit(-1);
+	}
 
-	// DECLARATION OF TIMER
+
+
+	// DECLARATION OF TIMERS
+
+	// initiliaze date and time tracking for data / log files
 	time_t  progTime; 					// time in seconds
 	struct tm * contents;
 
 	time(&progTime);					// get time in seconds
 	contents = localtime(&progTime);	// convert to local time
 
+	// initialize the clock timers for loop timer and update time
+	clock_t clockTime = clock();
+	clock_t lastSave = clock();
+	clock_t lastConnectionCheck = clock(); 	// the last time checking the connection
+	clock_t lastPinCheck = clock();			// the last time checking the pins
+
+	const double saveTime = 60*60; 			// save files every hour
+	const double connectionCheckTime = 0.5;	// in the loop check the bluetooth connection every x seconds
+	const double pinCheckTime = 0.5;		// in the loop check the pin reading every x seconds
+
+	double connectionDiffTime;
+	double pinDiffTime;
+
 	printf("Program start @: %s\n", asctime(contents));
 	fprintf(pLogFile, "@ %s   INFO: Program start.\r\n", asctime(contents));
+
+
 
 	// INTIALIZING AND ASSIGNING PINS
 	int gpio1;
@@ -208,6 +235,9 @@ int main(int argc, char **argv, char **envp)
 	}
 
 	
+
+
+	// BLUETOOTH INITIALIZATION
 	
 	//initialize scan and connection structs and variables
     inquiry_info *info = NULL;
@@ -228,10 +258,12 @@ int main(int argc, char **argv, char **envp)
 	
 	struct tm nextAlarm = maxTime;  // alarm set for 100 years in the future (alarm will not go off)
 	struct tm lastAlarm = minTime;  // previous alarm went off a long time ago (no need to check if sleeping yet)
-	int alarmGoing = 0;				
+	int alarmGoing = 0;			
+
+
 	
 	//////////////////////////////////////////////////
-	//SCAN
+	// BLUETOOTH SCANNING
 	//////////////////////////////////////////////////
 	
 	//get socket for scanning for bluetooth devices
@@ -279,7 +311,6 @@ int main(int argc, char **argv, char **envp)
 
 
     //connect to selected device
-
     if (strcmp(dest,"1234") == 0) {
 	printf("Copying error\n");
 	return 0;
@@ -288,13 +319,15 @@ int main(int argc, char **argv, char **envp)
 	// allocate a socket
     s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
 	
+
+
+
 	///////////////////////////////////////////////////////////
-	// MAIN LOOP (should be based on an actual timer not sleep)
+	// MAIN LOOP (based on clock time to not rely on busy wait)
 	///////////////////////////////////////////////////////////
 
 	int inBed = 0;
 	int done = 0;
-	// int currentTime = 0;
 	printf("Beginning test loop...\n");
 	while(!done)
 	{
@@ -302,111 +335,172 @@ int main(int argc, char **argv, char **envp)
 		time(&progTime);					// get time in seconds
 		contents = localtime(&progTime);	// convert to local time
 
-		// get value from pressure sensor; a value of one is inBed
-		gpioValue1 = gpio_get_value(gpio1);
+		clockTime = clock();				// get current clock cycle
 
-		if(gpioValue1 && !inBed)
+		// SAVING THE FILES EVERY HOUR
+		if((double)(clockTime - lastSave)/CLOCKS_PER_SECOND)
 		{
-			// print time getting into bed as the first part of the csv
-			// prints like asctime but without the /n at the end, and with weekday/month as number
-			fprintf(pDataFile, "%d %.2d %.2d %.2d:%.2d:%.2d, ", contents->tm_wday, contents->tm_mon,
-					contents->tm_mday, contents->tm_hour, contents->tm_min, contents->tm_sec);
-			inBed = 1;
-		} else if(!gpioValue1 && inBed)
-		{
-			// print time getting out of bed as the second part of the csv
-			fprintf(pDataFile,  "%d %.2d %.2d %.2d:%.2d:%.2d\r\n", contents->tm_wday, contents->tm_mon,
-					contents->tm_mday, contents->tm_hour, contents->tm_min, contents->tm_sec);
-			inBed = 0;
-		}
+			fprint(pLogFile, "@ %s   INFO: Saving files...\r\n", asctime(contents));
 
-		printf("inBed: %d\n",inBed);
+			// close the files
+			fclose(pLogFile);
+			fclose(pDataFile);
 
-		
-		
-		
-		if(connected < 0)
-		{
-			// set the connection parameters (who to connect to)
-			addr.rc_family = AF_BLUETOOTH;
-			addr.rc_channel = (uint8_t) 1;
-			str2ba( dest, &addr.rc_bdaddr );
+			// reopening the files with "a" to append
+			pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
+			pDataFile = fopen("ECSleeping/Data/week1.csv", "a");
 
-			// connect to server
-			connected = connect(s, (struct sockaddr *)&addr, sizeof(addr));
-		}
-
-		// read time from phone
-		if( connected == 0 )
-		{
-			timeBytes = read(s, buf, sizeof(buf));
-			
-			if(timeBytes > 0)
+			// making sure they reopened successfully
+			if(pLogFile == NULL)
 			{
-				nextAlarm = stringToTime(buf);
-				printf("Alarm set to %s", asctime(&nextAlarm));
+				perror("Error: Log file failed to reopen, will try again next time.");
+			} else if(pDataFile == NULL)
+			{
+				fprintf(pLogFile, "@ %s   INFO: Log file successfully reopened.\r\n", asctime(contents));
+				fprintf(pLogFile, "@ %s   WARNING: Data file failed to reopen, will try again next time.\r\n", asctime(contents));
+			} else 
+			{
+				fprintf(pLogFile, "@ %s   INFO: Files successfully reopened.\r\n", asctime(contents));
+				lastSave = clock(); // if either of the files fail it will try to save/reopen again next cycle
 			}
 			
-			// check connection
-			sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
-			alarmGoing = 0;
-			
-			lastAlarm = *contents;
+		}
 
-			if( sendStatus < 0 )
+
+
+		// PIN CHECKING AND DATA WRITING
+		pinDiffTime = (double)(clockTime - lastPinCheck)/CLOCKS_PER_SECOND; // get difference in time
+
+		if(pinDiffTime < 0)
+		{
+			// this probably just means the clock_t var has ticked over, reseting to 0
+			fprintf(pLogFile, "@ %s   INFO: Clock overflowed, skipping current time check.\r\n", asctime(contents));
+			lastPinCheck = clock();
+
+		}
+		else if( pinDiffTime >= pinCheckTime)
+		{
+			// get value from pressure sensor; a value of one is inBed
+			gpioValue1 = gpio_get_value(gpio1);
+
+			if(gpioValue1 && !inBed)
 			{
-				fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
-				connected = -1; // attempt to recconnect
+				// print time getting into bed as the first part of the csv
+				// prints like asctime but without the /n at the end, and with weekday/month as number
+				fprintf(pDataFile, "%d %.2d %.2d %.2d:%.2d:%.2d, ", contents->tm_wday, contents->tm_mon,
+						contents->tm_mday, contents->tm_hour, contents->tm_min, contents->tm_sec);
+				inBed = 1;
+				printf("inBed: %d\n",inBed);
+			} else if(!gpioValue1 && inBed)
+			{
+				// print time getting out of bed as the second part of the csv
+				fprintf(pDataFile,  "%d %.2d %.2d %.2d:%.2d:%.2d\r\n", contents->tm_wday, contents->tm_mon,
+						contents->tm_mday, contents->tm_hour, contents->tm_min, contents->tm_sec);
+				inBed = 0;
+				printf("inBed: %d\n",inBed);
 			}
 		}
-		
-		// send command
-		if( connected == 0 ) 
-		{
-			if(alarmGoing)
-			{
-				if(!inBed)
-				{
-					sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
-					alarmGoing = 0;
-					
-					lastAlarm = *contents;
 
-					if( sendStatus < 0 )
-					{
-						fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
-						connected = -1; // attempt to recconnect
-					}
-				}
-			}
-			else
+
+
+		clockTime = clock();
+
+
+
+
+		// BLUETOOTH CONNECTING AND COMMUNICATION
+		connectionDiffTime = (double)(clockTime - lastConnectionCheck)/CLOCKS_PER_SECOND; // get difference in time
+
+		if(connectionDiffTime < 0)
+		{
+			// this probably just means the clock_t var has ticked over, reseting to 0
+			fprintf(pLogFile, "@ %s   INFO: Clock overflowed, skipping current time check.\r\n", asctime(contents));
+			lastConnectionCheck = clock();
+		}
+		else if (connectionDiffTime >= connectionCheckTime)
+		{
+			if(connected < 0)
 			{
-				if(inBed && difftime(mktime(&nextAlarm), progTime) < 3 && difftime(mktime(&nextAlarm), progTime) > -3)
+				// set the connection parameters (who to connect to)
+				addr.rc_family = AF_BLUETOOTH;
+				addr.rc_channel = (uint8_t) 1;
+				str2ba( dest, &addr.rc_bdaddr );
+
+				// connect to server
+				connected = connect(s, (struct sockaddr *)&addr, sizeof(addr));
+			}
+
+
+			// read time from phone
+			if( connected == 0 )
+			{
+				timeBytes = read(s, buf, sizeof(buf));
+				
+				if(timeBytes > 0)
 				{
-					sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
-					alarmGoing = 1;
-					
-					if( sendStatus < 0 )
-					{
-						fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
-						connected = -1; // attempt to recconnect
-					}
-				}
-				if(inBed && difftime(progTime, mktime(&lastAlarm)) < 300) //sets off alarm if back in bed within 5 minutes
-				{
-					sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
-					alarmGoing = 1;
-					
-					if( sendStatus < 0 )
-					{
-						fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
-						connected = -1; // attempt to recconnect
-					}
+					nextAlarm = stringToTime(buf);
 				}
 				
+				// check connection
+				sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
+				alarmGoing = 0;
+				
+				lastAlarm = *contents;
+
+				if( sendStatus < 0 )
+				{
+					fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+					connected = -1; // attempt to recconnect
+				}
 			}
-		}
-		
+			
+			// send command
+			if( connected == 0 ) 
+			{
+				if(alarmGoing)
+				{
+					if(!inBed)
+					{
+						sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
+						alarmGoing = 0;
+						
+						lastAlarm = *contents;
+
+						if( sendStatus < 0 )
+						{
+							fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+							connected = -1; // attempt to recconnect
+						}
+					}
+				}
+				else
+				{
+					if(inBed && difftime(mktime(&nextAlarm), progTime) < 3 && difftime(mktime(&nextAlarm), progTime) > -3)
+					{
+						sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
+						alarmGoing = 1;
+						
+						if( sendStatus < 0 )
+						{
+							fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+							connected = -1; // attempt to recconnect
+						}
+					}
+					if(inBed && difftime(progTime, mktime(&lastAlarm)) < 300) //sets off alarm if back in bed within 5 minutes
+					{
+						sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
+						alarmGoing = 1;
+						
+						if( sendStatus < 0 )
+						{
+							fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+							connected = -1; // attempt to recconnect
+						}
+					}
+					
+				}
+			}
+		}		
 		
 		
 		
@@ -419,8 +513,6 @@ int main(int argc, char **argv, char **envp)
 			done = 1;
 		}
 
-		// currentTime++;
-		usleep(udelay);
 	}
 
 	////////////////////
@@ -452,7 +544,7 @@ int main(int argc, char **argv, char **envp)
 	//close BT socket
 	close(s);
 	
-	// close the log file
+	// close the files
 	fclose(pLogFile);
 	fclose(pDataFile);
 
