@@ -84,7 +84,6 @@ int myAtoi(char a)
 
 
 
-
 struct tm stringToTime(char* string)
 {
 	char bigHour = string[0];
@@ -147,11 +146,11 @@ struct tm stringToTime(char* string)
 }
 
 
-
+// function to write to the log file during the loop (this way it saves it in case it crashes)
 void logOut(char message[], struct tm * logTime)
 {
 	FILE *pLogFile;
-	pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
+	pLogFile = fopen("/root/ECSleeping/Logs/week1.log", "a");
 
 	if(pLogFile == NULL)
 	{
@@ -165,10 +164,11 @@ void logOut(char message[], struct tm * logTime)
 
 
 
+// function to write to the data file during the loop (again most of the data will be retained if it exits improperly)
 void dataOut(struct tm firstTime, struct tm * secondTime)
 {
 	FILE *pDataFile;
-	pDataFile = fopen("/ECSleeping/Data/week1.csv", "a");
+	pDataFile = fopen("/root/ECSleeping/Data/week1.csv", "a");
 
 	if(pDataFile == NULL)
 	{
@@ -199,7 +199,7 @@ int main(int argc, char **argv, char **envp)
 
 	// initialize pointer for log file
 	FILE *pLogFile;
-	pLogFile = fopen("/ECSleeping/Logs/week1.log", "w");
+	pLogFile = fopen("/root/ECSleeping/Logs/week1.log", "w");
 
 	if(pLogFile == NULL)
 	{
@@ -209,7 +209,7 @@ int main(int argc, char **argv, char **envp)
 
 	// initialize pointer for data file
 	FILE *pDataFile;
-	pDataFile = fopen("/ECSleeping/Data/week1.csv", "w");
+	pDataFile = fopen("/root/ECSleeping/Data/week1.csv", "w");
 
 	if(pDataFile == NULL)
 	{
@@ -261,7 +261,7 @@ int main(int argc, char **argv, char **envp)
 	int gpioValue2;
 
 	// initialize first pin
-	gpio1 = atoi(argv[1]);
+	gpio1 = myAtoi(argv[1]);
 	gpioUsed1 = intializeGPIO(gpio1);
 	if(!gpioUsed1)
 	{
@@ -270,7 +270,7 @@ int main(int argc, char **argv, char **envp)
 	}
 
 	// initialize second pin
-	gpio2 = atoi(argv[2]);
+	gpio2 = myAtoi(argv[2]);
 	gpioUsed2 = intializeGPIO(gpio2);
 	if(!gpioUsed2)
 	{
@@ -379,7 +379,7 @@ int main(int argc, char **argv, char **envp)
 
 	int inBed = 0;
 	int done = 0;
-	printf("Beginning test loop...\n");
+	printf("Beginning main loop...\n");
 	while(!done)
 	{
 		// this is used for logging / data
@@ -416,6 +416,8 @@ int main(int argc, char **argv, char **envp)
 				inBed = 0;
 				printf("inBed: %d\n",inBed);
 			}
+			// update the last pin check
+			lastPinCheck = clock();
 		}
 
 
@@ -517,6 +519,8 @@ int main(int argc, char **argv, char **envp)
 					
 				}
 			}
+			// update the last connection check
+			lastConnectionCheck = clock();
 		}		
 		
 		
