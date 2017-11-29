@@ -361,11 +361,11 @@ int main(int argc, char **argv, char **envp)
 	    //connect to selected device
 	    if (strcmp(dest,"1234") == 0) {
 		printf("Copying error\n");
-		return 0;
-	    }
-		
-		// allocate a socket
-	    s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
+		fprintf(pLogFile, "@ %s   WARNING: Bluetooth socket failed to open, continueing without bluetooth.\r\n", asctime(contents));
+        bluetooth = 0;		//if bluetooth fails to open, don't try to use bluetooth
+	    } else
+			// allocate a socket
+		    s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
 	}
 
 
@@ -538,10 +538,10 @@ int main(int argc, char **argv, char **envp)
 
 	// CLOSING DOWN THE SYSTEM
 
-	FILE *pLogFile;
+	FILE *pLogFile2;
 	pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
 
-	if(pLogFile == NULL)
+	if(pLogFile2 == NULL)
 	{
 		perror("Warning: Log file did not open.");
 	}
@@ -552,7 +552,7 @@ int main(int argc, char **argv, char **envp)
 		printf("> unexporting gpio%d\n", gpio1);
 		if (gpio_free(gpio1) < 0)
 		{
-			fprintf(pLogFile, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio1);
+			fprintf(pLogFile2, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio1);
 			perror("gpio_free");
 		}
 	}
@@ -561,7 +561,7 @@ int main(int argc, char **argv, char **envp)
 		printf("> unexporting gpio%d\n", gpio2);
 		if (gpio_free(gpio2) < 0)
 		{
-			fprintf(pLogFile, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio2);
+			fprintf(pLogFile2, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio2);
 			perror("gpio_free");
 		}
 	}
@@ -573,7 +573,7 @@ int main(int argc, char **argv, char **envp)
 	}
 
 	// close the final log file
-	fclose(pLogFile);
+	fclose(pLogFile2);
 
 	return 0;
 }
