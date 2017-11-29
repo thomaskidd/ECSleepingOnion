@@ -146,7 +146,20 @@ struct tm stringToTime(char* string)
 	return nextTime;
 }
 
+int logOut(char message[], struct tm * logTime)
+{
+	FILE *pLogFile;
+	pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
 
+	if(pLogFile == NULL)
+	{
+		perror("Warning: Log file did not open.");
+	}
+
+	fprintf(pLogFile, "@ %s   %s", asctime(logTime) message);
+
+	fclose(pLogFile);
+}
 
 
 int main(int argc, char **argv, char **envp)
@@ -325,6 +338,9 @@ int main(int argc, char **argv, char **envp)
 	}
 
 
+	// close the files in order to save them, we'll append them in the logOut and dataOut functions later
+	fclose(pLogFile);
+	fclose(pDataFile);
 
 	///////////////////////////////////////////////////////////
 	// MAIN LOOP (based on clock time to not rely on busy wait)
@@ -341,44 +357,13 @@ int main(int argc, char **argv, char **envp)
 
 		clockTime = clock();				// get current clock cycle
 
-		// SAVING THE FILES EVERY HOUR
-		if((double)(clockTime - lastSave)/CLOCKS_PER_SEC)
-		{
-			fprint(pLogFile, "@ %s   INFO: Saving files...\r\n", asctime(contents));
-
-			// close the files
-			fclose(pLogFile);
-			fclose(pDataFile);
-
-			// reopening the files with "a" to append
-			pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
-			pDataFile = fopen("ECSleeping/Data/week1.csv", "a");
-
-			// making sure they reopened successfully
-			if(pLogFile == NULL)
-			{
-				perror("Error: Log file failed to reopen, will try again next time.");
-			} else if(pDataFile == NULL)
-			{
-				fprintf(pLogFile, "@ %s   INFO: Log file successfully reopened.\r\n", asctime(contents));
-				fprintf(pLogFile, "@ %s   WARNING: Data file failed to reopen, will try again next time.\r\n", asctime(contents));
-			} else 
-			{
-				fprintf(pLogFile, "@ %s   INFO: Files successfully reopened.\r\n", asctime(contents));
-				lastSave = clock(); // if either of the files fail it will try to save/reopen again next cycle
-			}
-			
-		}
-
-
-
 		// PIN CHECKING AND DATA WRITING
 		pinDiffTime = (double)(clockTime - lastPinCheck)/CLOCKS_PER_SEC; // get difference in time
 
 		if(pinDiffTime < 0)
 		{
 			// this probably just means the clock_t var has ticked over, reseting to 0
-			fprintf(pLogFile, "@ %s   INFO: Clock overflowed, skipping current time check.\r\n", asctime(contents));
+			logOut("INFO: Clock overflowed, skipping current time check.\r\n", contents);
 			lastPinCheck = clock();
 
 		}
@@ -418,7 +403,7 @@ int main(int argc, char **argv, char **envp)
 		if(connectionDiffTime < 0)
 		{
 			// this probably just means the clock_t var has ticked over, reseting to 0
-			fprintf(pLogFile, "@ %s   INFO: Clock overflowed, skipping current time check.\r\n", asctime(contents));
+			logOut("INFO: Clock overflowed, skipping current time check.\r\n", contents);
 			lastConnectionCheck = clock();
 		}
 		else if (connectionDiffTime >= connectionCheckTime)
@@ -453,7 +438,7 @@ int main(int argc, char **argv, char **envp)
 
 				if( sendStatus < 0 )
 				{
-					fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+					logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
 					connected = -1; // attempt to recconnect
 				}
 			}
@@ -472,7 +457,7 @@ int main(int argc, char **argv, char **envp)
 
 						if( sendStatus < 0 )
 						{
-							fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
 							connected = -1; // attempt to recconnect
 						}
 					}
@@ -486,7 +471,7 @@ int main(int argc, char **argv, char **envp)
 						
 						if( sendStatus < 0 )
 						{
-							fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
 							connected = -1; // attempt to recconnect
 						}
 					}
@@ -497,7 +482,7 @@ int main(int argc, char **argv, char **envp)
 						
 						if( sendStatus < 0 )
 						{
-							fprintf(pLogFile, "@ %s   WARNING: Data failed to send to server\n", asctime(contents));	//logs connection error
+							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
 							connected = -1; // attempt to recconnect
 						}
 					}
@@ -513,7 +498,7 @@ int main(int argc, char **argv, char **envp)
 		if(gpioValue2)
 		{
 			printf("Pin %d was activated, ending program.\n", gpio2);
-			fprintf(pLogFile, "@ %s   INFO: Pin %d was activated, ending program.\r\n", asctime(contents), gpio2);
+			logOut("INFO: Deactivation was activated, ending program.\r\n", contents);
 			done = 1;
 		}
 
@@ -524,6 +509,14 @@ int main(int argc, char **argv, char **envp)
 	////////////////////
 
 	// CLOSING DOWN THE SYSTEM
+
+	FILE *pLogFile;
+	pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
+
+	if(pLogFile == NULL)
+	{
+		perror("Warning: Log file did not open.");
+	}
 
 	// unexport the gpios
 	if(gpioUsed1)
@@ -550,10 +543,9 @@ int main(int argc, char **argv, char **envp)
 		//close BT socket
 		close(s);
 	}
-	
-	// close the files
+
+	// close the final log file
 	fclose(pLogFile);
-	fclose(pDataFile);
 
 	return 0;
 }
