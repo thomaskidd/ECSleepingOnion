@@ -146,7 +146,9 @@ struct tm stringToTime(char* string)
 	return nextTime;
 }
 
-int logOut(char message[], struct tm * logTime)
+
+
+void logOut(char message[], struct tm * logTime)
 {
 	FILE *pLogFile;
 	pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
@@ -156,10 +158,40 @@ int logOut(char message[], struct tm * logTime)
 		perror("Warning: Log file did not open.");
 	}
 
-	fprintf(pLogFile, "@ %s   %s", asctime(logTime) message);
+	fprintf(pLogFile, "@ %s   %s", asctime(logTime), message);
 
 	fclose(pLogFile);
 }
+
+
+
+void dataOut(struct tm firstTime, struct tm * secondTime)
+{
+	FILE *pDataFile;
+	pDataFile = fopen("/ECSleeping/Data/week1.csv", "a");
+
+	if(pDataFile == NULL)
+	{
+		perror("Error: Data file failed to open.");
+		logOut("ERROR: Data file failed to open.", secondTime);
+	} else
+	{
+		// print time getting into bed as the first part of the csv
+		// prints like asctime but without the /n at the end, and with weekday/month as number
+		fprintf(pDataFile, "%d %.2d %.2d %.2d:%.2d:%.2d, ", firstTime.tm_wday, firstTime.tm_mon,
+				firstTime.tm_mday, firstTime.tm_hour, firstTime.tm_min, firstTime.tm_sec);
+
+		// print time getting out of bed as the second part of the csv
+		fprintf(pDataFile,  "%d %.2d %.2d %.2d:%.2d:%.2d\r\n", secondTime->tm_wday, secondTime->tm_mon,
+				secondTime->tm_mday, secondTime->tm_hour, secondTime->tm_min, secondTime->tm_sec);
+	}
+
+	fclose(pDataFile);
+}
+
+
+
+
 
 
 int main(int argc, char **argv, char **envp)
@@ -175,7 +207,7 @@ int main(int argc, char **argv, char **envp)
 		exit(-1);
 	}
 
-	// initialize point for data file
+	// initialize pointer for data file
 	FILE *pDataFile;
 	pDataFile = fopen("/ECSleeping/Data/week1.csv", "w");
 
@@ -199,17 +231,16 @@ int main(int argc, char **argv, char **envp)
 	// initiliaze date and time tracking for data / log files
 	time_t  progTime; 					// time in seconds
 	struct tm * contents;
+	struct tm timeInBed;
 
 	time(&progTime);					// get time in seconds
 	contents = localtime(&progTime);	// convert to local time
 
 	// initialize the clock timers for loop timer and update time
 	clock_t clockTime = clock();
-	clock_t lastSave = clock();
 	clock_t lastConnectionCheck = clock(); 	// the last time checking the connection
 	clock_t lastPinCheck = clock();			// the last time checking the pins
 
-	const double saveTime = 60*60; 			// save files every hour
 	const double connectionCheckTime = 0.5;	// in the loop check the bluetooth connection every x seconds
 	const double pinCheckTime = 0.5;		// in the loop check the pin reading every x seconds
 
@@ -285,7 +316,7 @@ int main(int argc, char **argv, char **envp)
     sock = hci_open_dev( dev_id );
     if(dev_id < 0 || sock < 0) {
         perror("Failed to open socket");
-        fprintf(pLogFile, "%s\n", "@ %s   WARNING: Bluetooth socket failed to open, continueing without bluetooth.\r\n", asctime(contents));
+        fprintf(pLogFile, "@ %s   WARNING: Bluetooth socket failed to open, continueing without bluetooth.\r\n", asctime(contents));
         bluetooth = 0;		//if bluetooth fails to open, don't try to use bluetooth
     }
 
@@ -367,24 +398,21 @@ int main(int argc, char **argv, char **envp)
 			lastPinCheck = clock();
 
 		}
-		else if( pinDiffTime >= pinCheckTime && bluetooth)
+		else if(pinDiffTime >= pinCheckTime)
 		{
 			// get value from pressure sensor; a value of one is inBed
 			gpioValue1 = gpio_get_value(gpio1);
 
 			if(gpioValue1 && !inBed)
 			{
-				// print time getting into bed as the first part of the csv
-				// prints like asctime but without the /n at the end, and with weekday/month as number
-				fprintf(pDataFile, "%d %.2d %.2d %.2d:%.2d:%.2d, ", contents->tm_wday, contents->tm_mon,
-						contents->tm_mday, contents->tm_hour, contents->tm_min, contents->tm_sec);
+				// set time gotten into bed
+				timeInBed = *contents;
 				inBed = 1;
 				printf("inBed: %d\n",inBed);
 			} else if(!gpioValue1 && inBed)
 			{
-				// print time getting out of bed as the second part of the csv
-				fprintf(pDataFile,  "%d %.2d %.2d %.2d:%.2d:%.2d\r\n", contents->tm_wday, contents->tm_mon,
-						contents->tm_mday, contents->tm_hour, contents->tm_min, contents->tm_sec);
+				// use data out to write time in bed , time out of bed 
+				dataOut(timeInBed, contents);
 				inBed = 0;
 				printf("inBed: %d\n",inBed);
 			}
@@ -406,7 +434,7 @@ int main(int argc, char **argv, char **envp)
 			logOut("INFO: Clock overflowed, skipping current time check.\r\n", contents);
 			lastConnectionCheck = clock();
 		}
-		else if (connectionDiffTime >= connectionCheckTime)
+		else if (connectionDiffTime >= connectionCheckTime && bluetooth)
 		{
 			if(connected < 0)
 			{
@@ -421,7 +449,7 @@ int main(int argc, char **argv, char **envp)
 
 
 			// read time from phone
-			if( connected == 0 )
+			if(connected == 0 )
 			{
 				timeBytes = read(s, buf, sizeof(buf));
 				
@@ -444,7 +472,7 @@ int main(int argc, char **argv, char **envp)
 			}
 			
 			// send command
-			if( connected == 0 ) 
+			if(connected == 0 ) 
 			{
 				if(alarmGoing)
 				{
@@ -498,7 +526,7 @@ int main(int argc, char **argv, char **envp)
 		if(gpioValue2)
 		{
 			printf("Pin %d was activated, ending program.\n", gpio2);
-			logOut("INFO: Deactivation was activated, ending program.\r\n", contents);
+			logOut("INFO: Deactivation pin was activated, ending program.\r\n", contents);
 			done = 1;
 		}
 
