@@ -196,10 +196,34 @@ void dataOut(struct tm firstTime, struct tm * secondTime)
 
 int main(int argc, char **argv, char **envp)
 {
+	// DECLARATION OF TIMERS
+
+	// initiliaze date and time tracking for data / log files
+	time_t  progTime; 					// time in seconds
+	struct tm * contents;
+	struct tm startTime;
+	struct tm timeInBed;
+
+	time(&progTime);					// get time in seconds
+	startTime = *localtime(&progTime);	// convert to local time
+	contents = localtime(&progTime);
+
+	// initialize the clock timers for loop timer and update time
+	clock_t clockTime = clock();
+	clock_t lastConnectionCheck = clock(); 	// the last time checking the connection
+	clock_t lastPinCheck = clock();			// the last time checking the pins
+
+	const double connectionCheckTime = 0.5;	// in the loop check the bluetooth connection every x seconds
+	const double pinCheckTime = 0.5;		// in the loop check the pin reading every x seconds
+
+	double connectionDiffTime;
+	double pinDiffTime;
+
+
 
 	// initialize pointer for log file
 	FILE *pLogFile;
-	pLogFile = fopen("/root/ECSleeping/Logs/week1.log", "w");
+	pLogFile = fopen("/root/ECSleeping/Logs/%.2d%.2d-%.4d.log", "w", startTime.tm_mday, startTime.tm_mon, startTime.tm_year);
 
 	if(pLogFile == NULL)
 	{
@@ -226,26 +250,6 @@ int main(int argc, char **argv, char **envp)
 
 
 
-	// DECLARATION OF TIMERS
-
-	// initiliaze date and time tracking for data / log files
-	time_t  progTime; 					// time in seconds
-	struct tm * contents;
-	struct tm timeInBed;
-
-	time(&progTime);					// get time in seconds
-	contents = localtime(&progTime);	// convert to local time
-
-	// initialize the clock timers for loop timer and update time
-	clock_t clockTime = clock();
-	clock_t lastConnectionCheck = clock(); 	// the last time checking the connection
-	clock_t lastPinCheck = clock();			// the last time checking the pins
-
-	const double connectionCheckTime = 0.5;	// in the loop check the bluetooth connection every x seconds
-	const double pinCheckTime = 0.5;		// in the loop check the pin reading every x seconds
-
-	double connectionDiffTime;
-	double pinDiffTime;
 
 	printf("Program start @: %s\n", asctime(contents));
 	fprintf(pLogFile, "@ %s   INFO: Program start.\r\n", asctime(contents));
