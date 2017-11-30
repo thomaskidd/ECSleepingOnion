@@ -199,13 +199,13 @@ int main(int argc, char **argv, char **envp)
 	// DECLARATION OF TIMERS
 
 	// initiliaze date and time tracking for data / log files
-	time_t  progTime; 					// time in seconds
+	time_t progTime; 					// time in seconds
+	time_t startTime;
 	struct tm * contents;
-	struct tm startTime;
 	struct tm timeInBed;
 
 	time(&progTime);					// get time in seconds
-	startTime = *localtime(&progTime);	// convert to local time
+	startTime = progTime;				// convert to local time
 	contents = localtime(&progTime);
 
 	// initialize the clock timers for loop timer and update time
@@ -223,7 +223,7 @@ int main(int argc, char **argv, char **envp)
 
 	// initialize pointer for log file
 	FILE *pLogFile;
-	pLogFile = fopen("/root/ECSleeping/Logs/%.2d%.2d-%.4d.log", "w", startTime.tm_mday, startTime.tm_mon, startTime.tm_year);
+	pLogFile = fopen("/root/ECSleeping/Logs/week1.log", "w");
 
 	if(pLogFile == NULL)
 	{
@@ -243,8 +243,9 @@ int main(int argc, char **argv, char **envp)
 
 	if(argc < 3)
 	{
-		printf("Usage: ./ECSleeping <gpio1> <gpio2>\n");
-		printf("gpio1 reads sensor, gpio2 ends program\n");
+		perror("\nError: Insufficient parameters...");
+		printf("   Usage: ./ECSleeping <gpio1> <gpio2>\n");
+		printf("   gpio1 reads sensor, gpio2 ends program\n");
 		exit(-1);
 	}
 
@@ -265,7 +266,7 @@ int main(int argc, char **argv, char **envp)
 	int gpioValue2;
 
 	// initialize first pin
-	gpio1 = myAtoi(argv[1]);
+	gpio1 = atoi(argv[1]);
 	gpioUsed1 = intializeGPIO(gpio1);
 	if(!gpioUsed1)
 	{
@@ -274,7 +275,7 @@ int main(int argc, char **argv, char **envp)
 	}
 
 	// initialize second pin
-	gpio2 = myAtoi(argv[2]);
+	gpio2 = atoi(argv[2]);
 	gpioUsed2 = intializeGPIO(gpio2);
 	if(!gpioUsed2)
 	{
@@ -382,13 +383,17 @@ int main(int argc, char **argv, char **envp)
 	///////////////////////////////////////////////////////////
 
 	int inBed = 0;
-	int done = 0;
+	int done = 0; // done can be triggered either by gpio2 or after 24 hours
 	printf("Beginning main loop...\n");
 	while(!done)
 	{
 		// this is used for logging / data
 		time(&progTime);					// get time in seconds
 		contents = localtime(&progTime);	// convert to local time
+
+		// check if 24 hours has passed
+		if(difftime(progTime, startTime) >= 60*60*24)
+			done = 1;
 
 		clockTime = clock();				// get current clock cycle
 
