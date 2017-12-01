@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <signal.h>
 
 #include <ugpio/ugpio.h>
-
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -384,7 +384,9 @@ int main(int argc, char **argv, char **envp)
 	char buf[8];
     char dest[18] = "1234"; // address of the app for Omega to connect to 
 	*/
-	
+	int sendStatus = -1;
+	int timeBytes = 0;
+	char buf[8];
 	
 	struct tm nextAlarm = maxTime;  // alarm set for 100 years in the future (alarm will not go off)
 	struct tm lastAlarm = minTime;  // previous alarm went off a long time ago (no need to check if sleeping yet)
@@ -763,7 +765,7 @@ int main(int argc, char **argv, char **envp)
 				if( sendStatus < 0 )
 				{
 					logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-					connected = -1; // attempt to recconnect
+					//connected = -1; // attempt to recconnect
 				}
 			//}
 			
@@ -783,7 +785,7 @@ int main(int argc, char **argv, char **envp)
 						if( sendStatus < 0 )
 						{
 							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-							connected = -1; // attempt to recconnect
+							//connected = -1; // attempt to recconnect
 						}
 					}
 				}
@@ -798,7 +800,7 @@ int main(int argc, char **argv, char **envp)
 						if( sendStatus < 0 )
 						{
 							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-							connected = -1; // attempt to recconnect
+							//connected = -1; // attempt to recconnect
 						}
 					}
 					if(inBed && difftime(progTime, mktime(&lastAlarm)) < 300) //sets off alarm if back in bed within 5 minutes
@@ -809,7 +811,7 @@ int main(int argc, char **argv, char **envp)
 						if( sendStatus < 0 )
 						{
 							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-							connected = -1; // attempt to recconnect
+							//connected = -1; // attempt to recconnect
 						}
 					}
 					
