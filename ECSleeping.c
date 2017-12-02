@@ -25,8 +25,8 @@
 
 // GPIO INTIALIZATION FUNCTION
 
-const struct tm maxTime = {0, 0, 0, 1, 0, 200, 0, 0, 0};
-const struct tm minTime = {0, 0, 0, 1, 0, 2, 0, 0, 0};
+const struct tm maxTime = {0, 0, 0, 1, 0, 200, 0, 0, -1};
+const struct tm minTime = {0, 0, 0, 1, 0, 2, 0, 0, -1};
 
 int intializeGPIO(const int pin)
 {
@@ -271,7 +271,17 @@ int str2uuid( const char *uuid_str, uuid_t *uuid )
     return 1;
 }
 
-
+int isSameTime(struct tm time1, struct tm time2)
+{
+	int same = 0;
+	
+	if(time1.tm_sec == time2.tm_sec && time1.tm_min == time2.tm_min && time1.tm_hour == time2.tm_hour && time1.tm_mday == time2.tm_mday && time1.tm_mon == time2.tm_mon && time1.tm_year == time2.tm_year && time1.tm_wday == time2.tm_wday && time1.tm_yday == time2.tm_yday && time1.tm_isdst == time1.tm_isdst)
+	{
+		same = 1;
+	}
+	
+	return same;
+}
 
 int main(int argc, char **argv, char **envp)
 {
@@ -292,7 +302,7 @@ int main(int argc, char **argv, char **envp)
 	clock_t lastConnectionCheck = clock(); 	// the last time checking the connection
 	clock_t lastPinCheck = clock();			// the last time checking the pins
 
-	const double connectionCheckTime = 0.5;	// in the loop check the bluetooth connection every x seconds
+	const double connectionCheckTime = 0.2;	// in the loop check the bluetooth connection every x seconds
 	const double pinCheckTime = 0.5;		// in the loop check the pin reading every x seconds
 
 	double connectionDiffTime;
@@ -365,25 +375,7 @@ int main(int argc, char **argv, char **envp)
 	
 
 
-	// BLUETOOTH INITIALIZATION
-	/*
-	//initialize scan and connection structs and variables
-    inquiry_info *info = NULL;
-    int max_rsp, num_rsp;
-    int dev_id, sock, len, flags;
-    int i;
-    char address[19] = { 0 };
-    char name[248] = { 0 };
-	
-	//initialize BT communication variables and structs
-	struct sockaddr_rc addr = { 0 };
-    int s;
-	int connected = -1;
-	int sendStatus = -1;
-	int timeBytes = 0;
-	char buf[8];
-    char dest[18] = "1234"; // address of the app for Omega to connect to 
-	*/
+
 	int sendStatus = -1;
 	int timeBytes = 0;
 	char buf[8];
@@ -392,76 +384,11 @@ int main(int argc, char **argv, char **envp)
 	struct tm lastAlarm = minTime;  // previous alarm went off a long time ago (no need to check if sleeping yet)
 	int alarmGoing = 0;			
 
-
-	
-	//////////////////////////////////////////////////
-	// BLUETOOTH SCANNING
-	//////////////////////////////////////////////////
-	
-	/*
-	int bluetooth = 1;
-	//get socket for scanning for bluetooth devices
-    dev_id = hci_get_route(NULL);
-    sock = hci_open_dev( dev_id );
-    if(dev_id < 0 || sock < 0) {
-        perror("Failed to open socket");
-        fprintf(pLogFile, "@ %s   WARNING: Bluetooth socket failed to open, continueing without bluetooth.\r\n", asctime(contents));
-        bluetooth = 0;		//if bluetooth fails to open, don't try to use bluetooth
-    }
-
-    if(bluetooth) 
-    {
-	    //scan for 1.28 * len seconds
-	    len  = 8;
-	    max_rsp = 255; //find max of 255 bluetooth devices
-	    flags = IREQ_CACHE_FLUSH;
-	    info = (inquiry_info*)malloc(max_rsp * sizeof(inquiry_info));
-
-	    num_rsp = hci_inquiry(dev_id, len, max_rsp, NULL, &info, flags);
-	    if( num_rsp < 0 ) perror("hci_inquiry");
-
-	    //testing
-	    printf("num_rsp: ");
-	    printf("%d\n",num_rsp);
-
-	    for (i = 0; i < num_rsp; i++) {
-	        ba2str(&(info+i)->bdaddr, address);
-	        memset(name, 0, sizeof(name));
-
-	        if (hci_read_remote_name(sock, &(info+i)->bdaddr, sizeof(name), name, 0) < 0) {
-	            strcpy(name, "[unknown]");
-		}
-
-		//check if this is the desired device to connect to
-		int test = strcmp(name, "ECSleeping");
-		printf("test: %d", test);
-	        if (test > -3 && test < 3) {
-		    printf("Confirmed.\n");
-		    ba2str(&(info+i)->bdaddr, dest);
-		}
-
-	        printf("%s  [%s]\n", address, name);
-	    }
-
-	    free( info );
-	    close( sock );
-
-
-	    //connect to selected device
-	    if (strcmp(dest,"1234") == 0) {
-		printf("Copying error\n");
-		fprintf(pLogFile, "@ %s   WARNING: Bluetooth socket failed to open, continueing without bluetooth.\r\n", asctime(contents));
-        bluetooth = 0;		//if bluetooth fails to open, don't try to use bluetooth
-	    } else
-			// allocate a socket
-		    s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-	}
-	*/
 	
 	
 	///////////////////////////////////
-	//FIXED BLUETOOTH
-		//scanning variables and structs
+	//BLUETOOTH
+	//scanning variables and structs
     int i = 0;
     int j = 0;
     int err = 0;
@@ -646,7 +573,7 @@ int main(int argc, char **argv, char **envp)
 	
 	//Opens/creates the socket
 	if ( loco_channel > 0 && found == 1 ) {
-        printf("Found service on this device, now gonna blast it with dummy data\n");
+        //printf("Found service on this device, now gonna blast it with dummy data\n");
         s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
         loc_addr.rc_family = AF_BLUETOOTH;
         loc_addr.rc_channel = loco_channel;
@@ -717,8 +644,6 @@ int main(int argc, char **argv, char **envp)
 		clockTime = clock();
 
 
-
-
 		// BLUETOOTH CONNECTING AND COMMUNICATION
 		connectionDiffTime = (double)(clockTime - lastConnectionCheck)/CLOCKS_PER_SEC; // get difference in time
 
@@ -730,93 +655,68 @@ int main(int argc, char **argv, char **envp)
 		}
 		else if (connectionDiffTime >= connectionCheckTime)
 		{
-			/*
-			if(connected < 0)
+
+			//read from phone
+			timeBytes = recv(s, buf, sizeof(buf), O_NONBLOCK);
+
+			if(timeBytes > 0)
 			{
-				// set the connection parameters (who to connect to)
-				addr.rc_family = AF_BLUETOOTH;
-				addr.rc_channel = (uint8_t) 1;
-				str2ba( dest, &addr.rc_bdaddr );
-
-				// connect to server
-				connected = connect(s, (struct sockaddr *)&addr, sizeof(addr));
+				nextAlarm = stringToTime(buf);
 			}
-			*/
-
-			// read time from phone
-			//if(connected == 0 )
-			//{
-				//read from phone
-				timeBytes = read(s, buf, sizeof(buf));
-				
-				if(timeBytes > 0)
-				{
-					nextAlarm = stringToTime(buf);
-				}
-				
-				/*
-				// check connection
-				sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
-				alarmGoing = 0;
-				
-				lastAlarm = *contents;
-				*/
-
-				if( sendStatus < 0 )
-				{
-					logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-					//connected = -1; // attempt to recconnect
-				}
-			//}
+			
+			
+			if( sendStatus < 0 )
+			{
+				logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
+				//connected = -1; // attempt to recconnect
+			}
 			
 			// send command
-			//if(connected == 0 ) 
-			//{
-				if(alarmGoing)
+			if(alarmGoing)
+			{
+				//turn off alarm if user wakes up
+				if(!inBed)
 				{
-					//turn off alarm if user wakes up
-					if(!inBed)
-					{
-						sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
-						alarmGoing = 0;
-						
-						lastAlarm = *contents;
+					sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
+					alarmGoing = 0;
 
-						if( sendStatus < 0 )
-						{
-							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-							//connected = -1; // attempt to recconnect
-						}
+					lastAlarm = *contents;
+
+					if( sendStatus < 0 )
+					{
+						logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
+						//connected = -1; // attempt to recconnect
 					}
 				}
-				else
+			}
+			else
+			{
+				//sets off alarm when programed time is reached
+				if(inBed && difftime(mktime(&nextAlarm), progTime) < 1 && difftime(mktime(&nextAlarm), progTime) > -1 && !isSameTime(nextAlarm, maxTime))
 				{
-					//sets off alarm when programed time is reached
-					if(inBed && difftime(mktime(&nextAlarm), progTime) < 1 && difftime(mktime(&nextAlarm), progTime) > -1)
+					sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
+					alarmGoing = 1;
+
+					if( sendStatus < 0 )
 					{
-						sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
-						alarmGoing = 1;
-						
-						if( sendStatus < 0 )
-						{
-							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-							//connected = -1; // attempt to recconnect
-						}
+						logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
+						//connected = -1; // attempt to recconnect
 					}
-					if(inBed && difftime(progTime, mktime(&lastAlarm)) < 300) //sets off alarm if back in bed within 5 minutes
-					{
-						sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
-						alarmGoing = 1;
-						
-						if( sendStatus < 0 )
-						{
-							logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
-							//connected = -1; // attempt to recconnect
-						}
-					}
-					
 				}
-			//}
+				if(inBed && difftime(progTime, mktime(&lastAlarm)) < 300 && !isSameTime(lastAlarm, minTime)) //sets off alarm if back in bed within 5 minutes
+				{
+					sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
+					alarmGoing = 1;
+
+					if( sendStatus < 0 )
+					{
+						logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
+						//connected = -1; // attempt to recconnect
+					}
+				}
+
+			}
+			
 			// update the last connection check
 			lastConnectionCheck = clock();
 		}		
@@ -840,10 +740,10 @@ int main(int argc, char **argv, char **envp)
 
 	// CLOSING DOWN THE SYSTEM
 
-	FILE *pLogFile2;
-	pLogFile = fopen("/ECSleeping/Logs/week1.log", "a");
+	FILE *pDownLogFile;
+	pLogFile = fopen("/root/ECSleeping/Logs/week1.log", "a");
 
-	if(pLogFile2 == NULL)
+	if(pDownLogFile == NULL)
 	{
 		perror("Warning: Log file did not open.");
 	}
@@ -854,7 +754,7 @@ int main(int argc, char **argv, char **envp)
 		printf("> unexporting gpio%d\n", gpio1);
 		if (gpio_free(gpio1) < 0)
 		{
-			fprintf(pLogFile2, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio1);
+			fprintf(pDownLogFile, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio1);
 			perror("gpio_free");
 		}
 	}
@@ -863,7 +763,7 @@ int main(int argc, char **argv, char **envp)
 		printf("> unexporting gpio%d\n", gpio2);
 		if (gpio_free(gpio2) < 0)
 		{
-			fprintf(pLogFile2, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio2);
+			fprintf(pDownLogFile, "@%s   WARNING: Pin%d is still free.\r\n", asctime(contents), gpio2);
 			perror("gpio_free");
 		}
 	}
@@ -880,7 +780,7 @@ int main(int argc, char **argv, char **envp)
 	close(s);
 	
 	// close the final log file
-	fclose(pLogFile2);
+	fclose(pDownLogFile);
 
 	return 0;
 }
