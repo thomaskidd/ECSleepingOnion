@@ -271,17 +271,23 @@ int str2uuid( const char *uuid_str, uuid_t *uuid )
     return 1;
 }
 
+//Compares two tm structs and returns 1 if they are exactly the same
 int isSameTime(struct tm time1, struct tm time2)
 {
 	int same = 0;
 	
-	if(time1.tm_sec == time2.tm_sec && time1.tm_min == time2.tm_min && time1.tm_hour == time2.tm_hour && time1.tm_mday == time2.tm_mday && time1.tm_mon == time2.tm_mon && time1.tm_year == time2.tm_year && time1.tm_wday == time2.tm_wday && time1.tm_yday == time2.tm_yday && time1.tm_isdst == time1.tm_isdst)
+	if(time1.tm_sec == time2.tm_sec && time1.tm_min == time2.tm_min && time1.tm_hour == time2.tm_hour && time1.tm_mday == time2.tm_mday && time1.tm_mon == time2.tm_mon && 
+		time1.tm_year == time2.tm_year && time1.tm_wday == time2.tm_wday && time1.tm_yday == time2.tm_yday && time1.tm_isdst == time1.tm_isdst)
 	{
 		same = 1;
 	}
 	
 	return same;
 }
+
+
+
+
 
 int main(int argc, char **argv, char **envp)
 {
@@ -375,7 +381,25 @@ int main(int argc, char **argv, char **envp)
 	
 
 
-
+	// BLUETOOTH INITIALIZATION
+	/*
+	//initialize scan and connection structs and variables
+    inquiry_info *info = NULL;
+    int max_rsp, num_rsp;
+    int dev_id, sock, len, flags;
+    int i;
+    char address[19] = { 0 };
+    char name[248] = { 0 };
+	
+	//initialize BT communication variables and structs
+	struct sockaddr_rc addr = { 0 };
+    int s;
+	int connected = -1;
+	int sendStatus = -1;
+	int timeBytes = 0;
+	char buf[8];
+    char dest[18] = "1234"; // address of the app for Omega to connect to 
+	*/
 	int sendStatus = -1;
 	int timeBytes = 0;
 	char buf[8];
@@ -384,10 +408,13 @@ int main(int argc, char **argv, char **envp)
 	struct tm lastAlarm = minTime;  // previous alarm went off a long time ago (no need to check if sleeping yet)
 	int alarmGoing = 0;			
 
+
+	
 	
 	
 	///////////////////////////////////
-	//BLUETOOTH
+	//FIXED BLUETOOTH
+	
 	//scanning variables and structs
     int i = 0;
     int j = 0;
@@ -656,20 +683,22 @@ int main(int argc, char **argv, char **envp)
 		else if (connectionDiffTime >= connectionCheckTime)
 		{
 
+			// read time from phone
 			//read from phone
 			timeBytes = recv(s, buf, sizeof(buf), O_NONBLOCK);
-
+			
 			if(timeBytes > 0)
 			{
 				nextAlarm = stringToTime(buf);
 			}
-			
-			
+
 			if( sendStatus < 0 )
 			{
 				logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
 				//connected = -1; // attempt to recconnect
 			}
+			
+			
 			
 			// send command
 			if(alarmGoing)
@@ -679,7 +708,7 @@ int main(int argc, char **argv, char **envp)
 				{
 					sendStatus = write(s, "0", 1); //"1": set off alarm		"0": alarm off
 					alarmGoing = 0;
-
+					
 					lastAlarm = *contents;
 
 					if( sendStatus < 0 )
@@ -696,7 +725,7 @@ int main(int argc, char **argv, char **envp)
 				{
 					sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
 					alarmGoing = 1;
-
+					
 					if( sendStatus < 0 )
 					{
 						logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
@@ -707,16 +736,16 @@ int main(int argc, char **argv, char **envp)
 				{
 					sendStatus = write(s, "1", 1); //"1": set off alarm		"0": alarm off
 					alarmGoing = 1;
-
+					
 					if( sendStatus < 0 )
 					{
 						logOut("WARNING: Data failed to send to server\n", contents);	//logs connection error
 						//connected = -1; // attempt to recconnect
 					}
 				}
-
+				
 			}
-			
+
 			// update the last connection check
 			lastConnectionCheck = clock();
 		}		
@@ -768,13 +797,6 @@ int main(int argc, char **argv, char **envp)
 		}
 	}
 	
-	/*
-	if(bluetooth)
-	{
-		//close BT socket
-		close(s);
-	}
-	*/
 	
 	//close the socket
 	close(s);
