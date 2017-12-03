@@ -378,143 +378,123 @@ int main(int argc, char **argv, char **envp)
 		return EXIT_FAILURE;
 	}
 
-	
 
 
-	// BLUETOOTH INITIALIZATION
-	/*
-	//initialize scan and connection structs and variables
-    inquiry_info *info = NULL;
-    int max_rsp, num_rsp;
-    int dev_id, sock, len, flags;
-    int i;
-    char address[19] = { 0 };
-    char name[248] = { 0 };
-	
-	//initialize BT communication variables and structs
-	struct sockaddr_rc addr = { 0 };
-    int s;
-	int connected = -1;
+
 	int sendStatus = -1;
 	int timeBytes = 0;
 	char buf[8];
-    char dest[18] = "1234"; // address of the app for Omega to connect to 
-	*/
-	int sendStatus = -1;
-	int timeBytes = 0;
-	char buf[8];
-	
+
 	struct tm nextAlarm = maxTime;  // alarm set for 100 years in the future (alarm will not go off)
 	struct tm lastAlarm = minTime;  // previous alarm went off a long time ago (no need to check if sleeping yet)
 	int alarmGoing = 0;			
 
 
-	
-	
-	
+
+
+
 	///////////////////////////////////
-	//FIXED BLUETOOTH
-	
+	//BLUETOOTH
+
 	//scanning variables and structs
-    int i = 0;
-    int j = 0;
-    int err = 0;
-    int sock = 0;
-    int dev_id = -1;
-    int foundName = 0;
+	int i = 0;
+	int j = 0;
+	int err = 0;
+	int sock = 0;
+	int dev_id = -1;
+	int foundName = 0;
 
-    struct hci_dev_info dev_info;
-    inquiry_info *info = NULL;
-    int num_rsp= 0;
-    int length = 8; //scan for 1.28 * 8s
-    int flags = 0;
-    bdaddr_t ba;
-    char addr[19] = { 0 };
-    char name[248] = { 0 };
-    char targetAddr[19] = { 0 };
-    char targetName[248] = { 0 };
-    uuid_t uuid = { 0 };
-
-
-    //sdp query and connection variables and structs
-    int infoCounter = 0;
-    char *uuid_str="00001101-0000-1000-8000-00805F9B34FB";
-    uint32_t range = 0x0000ffff;
-    sdp_list_t *response_list = NULL;
-    sdp_list_t *search_list;
-    sdp_list_t *attrid_list;
-    int s, loco_channel = -1, status;
-    struct sockaddr_rc loc_addr = { 0 };
-    bdaddr_t tmpAddr;
-    int retries = 0;
-    int found = 0;
-    int responses = 0;
-    sdp_session_t *session;
+	struct hci_dev_info dev_info;
+	inquiry_info *info = NULL;
+	int num_rsp= 0;
+	int length = 8; //scan for 1.28 * 8s
+	int flags = 0;
+	bdaddr_t ba;
+	char addr[19] = { 0 };
+	char name[248] = { 0 };
+	char targetAddr[19] = { 0 };
+	char targetName[248] = { 0 };
+	uuid_t uuid = { 0 };
 
 
-    (void) signal(SIGINT, SIG_DFL);
+	//sdp query and connection variables and structs
+	int infoCounter = 0;
+	char *uuid_str="00001101-0000-1000-8000-00805F9B34FB";
+	uint32_t range = 0x0000ffff;
+	sdp_list_t *response_list = NULL;
+	sdp_list_t *search_list;
+	sdp_list_t *attrid_list;
+	int s, loco_channel = -1, status;
+	struct sockaddr_rc loc_addr = { 0 };
+	bdaddr_t tmpAddr;
+	int retries = 0;
+	int found = 0;
+	int responses = 0;
+	sdp_session_t *session;
 
-    dev_id = hci_get_route(NULL);
-    if (dev_id < 0) {
-        perror("No Bluetooth Adapter Available");
-        return -1;
-    }
 
-    if (hci_devinfo(dev_id, &dev_info) < 0) {
-        perror("Can't get device info");
-        return -1;
-    }
+	(void) signal(SIGINT, SIG_DFL);
+
+	dev_id = hci_get_route(NULL);
+	if (dev_id < 0) {
+		perror("No Bluetooth Adapter Available");
+		return -1;
+	}
+
+	if (hci_devinfo(dev_id, &dev_info) < 0) {
+		perror("Can't get device info");
+		return -1;
+	}
 
 
 
-    sock = hci_open_dev( dev_id );
-    if (sock < 0) {
-        perror("HCI device open failed");
-        free(info);
-        return -1;
-    }
+	sock = hci_open_dev( dev_id );
+	if (sock < 0) {
+		perror("HCI device open failed");
+		free(info);
+		return -1;
+	}
 
-    if( !str2uuid( uuid_str, &uuid ) ) {
-        perror("Invalid UUID");
-        free(info);
-        return -1;
-  	}
+	if( !str2uuid( uuid_str, &uuid ) ) {
+		perror("Invalid UUID");
+		free(info);
+		return -1;
+	}
 
   	while(!foundName) {
 
-  		printf("Scanning ...\n");
-        info = NULL;
-        num_rsp = 0;
-        flags = 0;
-        length = 8; /* ~10 seconds */
-        num_rsp = hci_inquiry(dev_id, length, num_rsp, NULL, &info, flags);
-        if (num_rsp < 0) {
-            perror("Inquiry failed");
-            exit(1);
-        }
+		printf("Scanning ...\n");
+		info = NULL;
+		num_rsp = 0;
+		flags = 0;
+		length = 8; /* ~10 seconds */
+		num_rsp = hci_inquiry(dev_id, length, num_rsp, NULL, &info, flags);
+		if (num_rsp < 0) {
+			perror("Inquiry failed");
+			exit(1);
+		}
 
-        //check info structs returned by hci_inquiry
-        for (int i = 0; i < num_rsp; i++) {
+		//check info structs returned by hci_inquiry
+		for (int i = 0; i < num_rsp; i++) {
+			
+			ba2str(&(info+i)->bdaddr, addr);
+			memset(name, 0, sizeof(name));
+			
+			if (hci_read_remote_name(sock, &(info+i)->bdaddr, sizeof(name), name, 0) < 0) {
+				strcpy(name, "[unknown]");
+			}
 
+			printf("Found %s  %s\n", addr, name);
 
-        	ba2str(&(info+i)->bdaddr, addr);
-            memset(name, 0, sizeof(name));
-
-            if (hci_read_remote_name(sock, &(info+i)->bdaddr, sizeof(name), name, 0) < 0) {
-            	strcpy(name, "[unknown]");
-        	}
-
-            printf("Found %s  %s\n", addr, name);
-
-            if (strcmp(name, "Yusef's G5") == 0) {
-            	printf("Success\n");
-            	infoCounter = i;
-            	foundName = 1;
-            	strcpy(targetName, name);
-            	strcpy(targetAddr, addr);
-            }
-        }
-  	}
+			if (strcmp(name, "Yusef's G5") == 0) {
+				printf("Success\n");
+				infoCounter = i;
+				foundName = 1;
+				strcpy(targetName, name);
+				strcpy(targetAddr, addr);
+			}
+		}
+	}
 
   	//attempt to connect to the app's sdp service
   	session = 0;
