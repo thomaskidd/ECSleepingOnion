@@ -201,6 +201,7 @@ void dataOut(struct tm firstTime, struct tm * secondTime)
 /**********************************************************************
 *    str2uuid referenced from :
 *    http://www.humbug.in/2010/sample-bluetooth-rfcomm-client-app-in-c
+*	@author : P. Sinah
 **********************************************************************/
 //convverts a string into a uuid for the phone to read
 int str2uuid( const char *uuid_str, uuid_t *uuid ) 
