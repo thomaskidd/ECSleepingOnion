@@ -28,6 +28,7 @@
 const struct tm maxTime = {0, 0, 0, 1, 0, 200, 0, 0, -1};
 const struct tm minTime = {0, 0, 0, 1, 0, 2, 0, 0, -1};
 
+// pin initialization as seen in gpioRead on the Onion git, just put in a function
 int intializeGPIO(const int pin)
 {
 
