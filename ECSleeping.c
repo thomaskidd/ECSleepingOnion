@@ -198,6 +198,10 @@ void dataOut(struct tm firstTime, struct tm * secondTime)
 }
 
 
+/**********************************************************************
+*    str2uuid referenced from :
+*    http://www.humbug.in/2010/sample-bluetooth-rfcomm-client-app-in-c
+**********************************************************************/
 //convverts a string into a uuid for the phone to read
 int str2uuid( const char *uuid_str, uuid_t *uuid ) 
 {
@@ -271,6 +275,9 @@ int str2uuid( const char *uuid_str, uuid_t *uuid )
 
     return 1;
 }
+/**********************************************************************
+*    End Reference
+**********************************************************************/
 
 //Compares two tm structs and returns 1 if they are exactly the same
 int isSameTime(struct tm time1, struct tm time2)
